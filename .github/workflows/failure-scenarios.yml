@@ -80,4 +80,5 @@ jobs:
 
       - name: Scenario notes
         if: ${{ always() }}
-        run: echo "Informational: artifacts remain available for inspection"
+        run: |
+          echo "Informational: artifacts remain available for inspection"
