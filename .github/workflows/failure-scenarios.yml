@@ -1,0 +1,83 @@
+name: Jev CI investigator failure scenarios
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Failure pattern to exercise
+        required: true
+        type: choice
+        options:
+          - assertion-cleanup
+          - build-tests
+          - independent
+
+jobs:
+  failure-scenario:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare sample workspace
+        run: |
+          echo "Runner: $RUNNER_OS"
+          echo "Preparing a deliberately failing CI scenario"
+          mkdir -p scenario-output
+
+      - name: Run assertions
+        id: assertions
+        if: ${{ inputs.scenario == 'assertion-cleanup' }}
+        run: |
+          echo "Loading cart fixtures"
+          echo "Running 12 tests"
+          actual=3
+          expected=4
+          if [ "$actual" -ne "$expected" ]; then
+            echo "AssertionError: cart total expected $expected, received $actual"
+            exit 1
+          fi
+
+      - name: Cleanup report
+        if: ${{ always() && inputs.scenario == 'assertion-cleanup' }}
+        run: |
+          echo "Collecting test results for the report"
+          if [ "${{ steps.assertions.outcome }}" != "success" ]; then
+            echo "CleanupError: cannot write report because Run assertions did not complete"
+            exit 1
+          fi
+          echo "Report written"
+
+      - name: Compile application
+        id: build
+        if: ${{ inputs.scenario == 'build-tests' }}
+        run: |
+          echo "Resolving 84 modules"
+          echo "Bundling production assets"
+          echo "BuildError: src/routes.ts:18:7 Unexpected token '}'"
+          exit 1
+
+      - name: Run test suite
+        if: ${{ always() && inputs.scenario == 'build-tests' }}
+        run: |
+          echo "Preparing test environment"
+          if [ "${{ steps.build.outcome }}" != "success" ]; then
+            echo "TestError: test suite could not run because Compile application failed"
+            exit 1
+          fi
+          echo "Tests passed"
+
+      - name: Run lint checks
+        if: ${{ inputs.scenario == 'independent' }}
+        run: |
+          echo "Checking 143 source files"
+          echo "LintError: no-unused-vars in src/app.ts:12"
+          exit 1
+
+      - name: Run integration tests
+        if: ${{ always() && inputs.scenario == 'independent' }}
+        run: |
+          echo "Starting integration test service"
+          echo "IntegrationError: database connection refused at 127.0.0.1:5432"
+          exit 1
+
+      - name: Scenario notes
+        if: ${{ always() }}
+        run: echo "Informational: artifacts remain available for inspection"
